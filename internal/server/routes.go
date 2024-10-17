@@ -3,12 +3,26 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/MatthewAraujo/auth-limit-redis/cmd/service/limit"
+	"github.com/MatthewAraujo/auth-limit-redis/cmd/service/user"
+	"github.com/MatthewAraujo/auth-limit-redis/internal/database"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
 	mux := http.NewServeMux()
 
+	db := database.New()
+	userStore := user.NewRedisUserStore(db.GetRedisClient())
+	userHandler := user.NewHandler(userStore)
+
+	limitStore := limit.NewTokenStore(db.GetRedisClient())
+	limitHandler := limit.NewHandler(limitStore)
+
 	mux.HandleFunc("/", helloWeb)
+	mux.HandleFunc("/login", userHandler.HandleLogin)
+	mux.HandleFunc("/create", userHandler.HandleCreateUser)
+	mux.HandleFunc("/limit", limitHandler.HandleLimit)
 
 	return mux
 }

@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/MatthewAraujo/auth-limit-redis/auth_sessions_redis/internal/server"
+	"github.com/MatthewAraujo/auth-limit-redis/internal/server"
 )
 
 func gracefulShutdown(apiServer *http.Server) {
