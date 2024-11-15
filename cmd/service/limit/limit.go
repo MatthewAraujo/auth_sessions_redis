@@ -2,7 +2,6 @@ package limit
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
@@ -19,7 +18,6 @@ func NewHandler(store types.LimitStore) *Handler {
 		store: store,
 	}
 }
-
 func (h *Handler) HandleLimit(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("Authorization")
 
@@ -28,18 +26,32 @@ func (h *Handler) HandleLimit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token = strings.Split(token, " ")[1]
-	log.Printf("token: %s", token)
+	tokenParts := strings.Split(token, " ")
+	if len(tokenParts) < 2 {
+		utils.WriteError(w, http.StatusUnauthorized, fmt.Errorf("invalid token format"))
+		return
+	}
+	token = tokenParts[1]
 
-	err := h.store.IncrementTokenCount(token)
+	expired, err := h.store.TokenIsExpired(token)
 	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, fmt.Errorf("internal server error"))
+		return
+	}
 
+	if expired {
+		utils.WriteError(w, http.StatusUnauthorized, fmt.Errorf("token is expired"))
+		return
+	}
+
+	err = h.store.IncrementTokenCount(token)
+	if err != nil {
 		if err == ErrLimitRequest {
 			utils.WriteError(w, http.StatusTooManyRequests, ErrLimitRequest)
 			return
 		}
 
-		utils.WriteError(w, http.StatusUnauthorized, fmt.Errorf("authorization token is missing"))
+		utils.WriteError(w, http.StatusInternalServerError, fmt.Errorf("failed to increment token count"))
 		return
 	}
 
